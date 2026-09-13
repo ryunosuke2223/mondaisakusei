@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>おうち学習 問題メーカー</title>
+<style>
+  :root{
+    --bg:#f6f8fc; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+    --primary:#4f46e5; --primary-dark:#4338ca; --line:#dbe2ea;
+    --soft:#eef2ff; --success:#15803d; --danger:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Yu Gothic UI","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;
+  }
+  header{
+    padding:28px 18px;color:#fff;
+    background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  }
+  header .inner{max-width:1080px;margin:auto}
+  h1{margin:0;font-size:clamp(26px,5vw,42px)}
+  header p{margin:8px 0 0;opacity:.93}
+  main{max-width:1080px;margin:22px auto;padding:0 16px 40px}
+  .tabs{display:flex;gap:10px;margin-bottom:16px}
+  .tab{
+    flex:1;border:0;border-radius:14px;padding:14px 12px;
+    font-size:18px;font-weight:800;cursor:pointer;background:#e7eaf3;color:#334155
+  }
+  .tab.active{background:var(--primary);color:#fff}
+  .card{
+    background:var(--card);border-radius:18px;padding:20px;
+    box-shadow:0 10px 30px rgba(31,41,55,.08);margin-bottom:18px
+  }
+  .controls{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+    gap:14px;align-items:end
+  }
+  label{display:block;font-weight:800;margin-bottom:7px}
+  select,input[type="number"]{
+    width:100%;padding:11px 12px;border:1px solid var(--line);
+    border-radius:11px;background:#fff;font-size:16px
+  }
+  .checkline{display:flex;align-items:center;gap:8px;min-height:44px}
+  input[type="checkbox"]{width:19px;height:19px}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  button.action{
+    border:0;border-radius:11px;padding:11px 16px;font-size:16px;
+    font-weight:800;cursor:pointer
+  }
+  .primary{background:var(--primary);color:#fff}
+  .primary:hover{background:var(--primary-dark)}
+  .secondary{background:#eef2ff;color:#3730a3}
+  .ghost{background:#f3f4f6;color:#374151}
+  .problem-header{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap
+  }
+  .problem-header h2{margin:0}
+  .badge{
+    display:inline-block;background:var(--soft);color:#3730a3;
+    border-radius:999px;padding:6px 10px;font-size:13px;font-weight:800
+  }
+  .problem-grid{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+    column-gap:34px;row-gap:8px;margin-top:18px
+  }
+  .problem{
+    min-height:50px;padding:8px 4px;border-bottom:1px dashed #cbd5e1;
+    display:flex;align-items:center;font-size:22px
+  }
+  .num{display:inline-block;min-width:35px;color:#64748b;font-weight:700}
+  .answer{margin-left:10px;color:var(--success);font-weight:900}
+  .hidden{display:none!important}
+  .small{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6}
+  .kanji-problem{font-size:19px;line-height:1.7}
+  .writebox{
+    display:inline-block;min-width:110px;height:32px;border-bottom:2px solid #64748b;
+    vertical-align:bottom;margin-left:8px
+  }
+  .error{color:var(--danger);font-weight:700;margin-top:10px}
+  footer{text-align:center;color:#94a3b8;font-size:12px;padding:14px}
+  @media(max-width:700px){
+    .problem-grid{grid-template-columns:1fr}
+    .problem{font-size:20px}
+  }
+
+  .password-modal{
+    position:fixed;inset:0;background:rgba(15,23,42,.58);
+    display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999
+  }
+  .password-dialog{
+    width:min(420px,100%);background:#fff;border-radius:18px;padding:22px;
+    box-shadow:0 24px 70px rgba(0,0,0,.25)
+  }
+  .password-dialog h3{margin:0 0 8px;font-size:22px}
+  .password-dialog p{margin:0 0 14px;color:var(--muted);line-height:1.6}
+  .password-dialog input{
+    width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;font-size:18px
+  }
+  .password-error{min-height:22px;color:var(--danger);font-weight:700;margin-top:8px}
+
+  @media print{
+    @page{size:A4;margin:12mm}
+    body{background:#fff}
+    header,.tabs,.settings-card,.screen-only,footer{display:none!important}
+    main{max-width:none;margin:0;padding:0}
+    .card{box-shadow:none;padding:0;margin:0}
+    .problem-grid{grid-template-columns:repeat(2,1fr);column-gap:28px}
+    .problem{font-size:18px;min-height:42px}
+    .problem-header{margin-bottom:10px}
+    .answer.print-hide{display:none!important}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="inner">
+    <h1>📘 おうち学習 問題メーカー</h1>
+    <p>算数と漢字の問題を、毎回ランダムに20問つくります。</p>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" id="mathTab" onclick="switchTab('math')">🔢 算数</button>
+    <button class="tab" id="kanjiTab" onclick="switchTab('kanji')">✏️ 国語・漢字</button>
+    <button class="tab" id="katakanaTab" onclick="switchTab('katakana')">📝 カタカナ</button>
+  </div>
+
+  <section id="mathSection">
+    <div class="card settings-card">
+      <div class="controls">
+        <div>
+          <label for="operation">計算</label>
+          <select id="operation" onchange="refreshMathControls()">
+            <option value="add">足し算（＋）</option>
+            <option value="sub">引き算（－）</option>
+            <option value="mul" selected>かけ算（×）</option>
+            <option value="div">わり算（÷）</option>
+          </select>
+        </div>
+        <div>
+          <label id="leftLabel" for="leftDigits">左の数</label>
+          <select id="leftDigits">
+            <option value="1">1桁</option><option value="2" selected>2桁</option>
+            <option value="3">3桁</option><option value="4">4桁</option>
+            <option value="5">5桁</option>
+          </select>
+        </div>
+        <div>
+          <label id="rightLabel" for="rightDigits">右の数</label>
+          <select id="rightDigits">
+            <option value="1" selected>1桁</option><option value="2">2桁</option>
+            <option value="3">3桁</option><option value="4">4桁</option>
+          </select>
+        </div>
+        <div>
+          <label for="mathCount">問題数</label>
+          <select id="mathCount">
+            <option>10</option><option selected>20</option><option>30</option><option>40</option>
+          </select>
+        </div>
+        <div id="remainderBox" class="hidden">
+          <label>わり算</label>
+          <div class="checkline">
+            <input id="allowRemainder" type="checkbox">
+            <label for="allowRemainder" style="margin:0;font-weight:700">あまりありも出す</label>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="action primary" onclick="generateMath()">🎲 問題をつくる</button>
+        <button class="action secondary" onclick="toggleAnswers('math')">👀 答え表示 / 非表示</button>
+        <button class="action ghost" onclick="printProblems(false)">🖨️ 問題だけ印刷</button>
+        <button class="action ghost" onclick="printProblems(true)">🖨️ 答えつき印刷</button>
+      </div>
+      <div class="small">わり算は「あまりなし」を基本にしています。「あまりありも出す」にチェックすると混在します。</div>
+      <div id="mathError" class="error"></div>
+    </div>
+
+    <div class="card" id="mathPaper">
+      <div class="problem-header">
+        <h2>算数プリント</h2>
+        <span class="badge" id="mathBadge">2桁 × 1桁 / 20問</span>
+      </div>
+      <div class="problem-grid" id="mathProblems"></div>
+    </div>
+  </section>
+
+  <section id="kanjiSection" class="hidden">
+    <div class="card settings-card">
+      <div class="controls">
+        <div>
+          <label for="grade">学年</label>
+          <select id="grade">
+            <option value="1">小学1年生</option>
+            <option value="2">小学2年生</option>
+            <option value="3">小学3年生</option>
+            <option value="4">小学4年生</option>
+            <option value="5">小学5年生</option>
+            <option value="6">小学6年生</option>
+          </select>
+        </div>
+        <div>
+          <label for="kanjiCount">問題数</label>
+          <select id="kanjiCount">
+            <option>10</option><option selected>20</option><option>30</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="action primary" onclick="generateKanji()">🎲 問題をつくる</button>
+        <button class="action secondary" onclick="toggleAnswers('kanji')">👀 答え表示 / 非表示</button>
+        <button class="action ghost" onclick="printProblems(false)">🖨️ 問題だけ印刷</button>
+        <button class="action ghost" onclick="printProblems(true)">🖨️ 答えつき印刷</button>
+      </div>
+      <div class="small">文章の中の（ひらがな）部分を漢字に直す形式です。前後の文から、書く漢字が分かるようにしています。</div>
+    </div>
+
+    <div class="card" id="kanjiPaper">
+      <div class="problem-header">
+        <h2>漢字 書き取りプリント</h2>
+        <span class="badge" id="kanjiBadge">小学1年生 / 20問</span>
+      </div>
+      <div class="problem-grid" id="kanjiProblems"></div>
+    </div>
+  </section>
+  <section id="katakanaSection" class="hidden">
+    <div class="card settings-card">
+      <div class="controls">
+        <div><label for="katakanaCount">問題数</label><select id="katakanaCount"><option>10</option><option selected>20</option><option>30</option><option>40</option></select></div>
+      </div>
+      <div class="actions">
+        <button class="action primary" onclick="generateKatakana()">🎲 問題をつくる</button>
+        <button class="action secondary" onclick="toggleAnswers('katakana')">👀 答え表示 / 非表示</button>
+        <button class="action ghost" onclick="printProblems(false)">🖨️ 問題だけ印刷</button>
+        <button class="action ghost" onclick="printProblems(true)">🖨️ 答えつき印刷</button>
+      </div>
+      <div class="small">ひらがなで表示された言葉を、カタカナに直して書く問題です。</div>
+    </div>
+    <div class="card" id="katakanaPaper">
+      <div class="problem-header"><h2>カタカナ 書き取りプリント</h2><span class="badge" id="katakanaBadge">20問</span></div>
+      <div class="problem-grid" id="katakanaProblems"></div>
+    </div>
+  </section>
+
+</main>
+
+<div id="passwordModal" class="password-modal hidden">
+  <div class="password-dialog">
+    <h3>🔒 保護者用</h3>
+    <p>答えを見るにはパスワードを入力してください。</p>
+    <input id="answerPassword" type="password" autocomplete="off" placeholder="パスワード"
+           onkeydown="if(event.key==='Enter') submitPassword()">
+    <div id="passwordError" class="password-error"></div>
+    <div class="actions">
+      <button class="action primary" onclick="submitPassword()">確認</button>
+      <button class="action ghost" onclick="closePasswordModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<footer>おうち学習 問題メーカー</footer>
+
+<script>
+let mathAnswersVisible = false;
+let kanjiAnswersVisible = false;
+let katakanaAnswersVisible = false;
+let currentTab = 'math';
+let pendingProtectedAction = null;
+
+const kanjiBank = {"1":[["高い{q}にのぼる。","やま","山"],["大きな{q}がながれている。","かわ","川"],["たき火の{q}をけす。","ひ","火"],["コップで{q}をのむ。","みず","水"],["大きな{q}のしたでやすむ。","き","木"],["たくさんの木がある{q}へいく。","はやし","林"],["どうぶつがすむ{q}へいく。","もり","森"],["青い{q}をみあげる。","そら","空"],["きょうは{q}がふっている。","あめ","雨"],["みちで丸い{q}をひろう。","いし","石"],["お米をつくる{q}がある。","た","田"],["はたけの{q}をたがやす。","つち","土"],["たくさんの{q}があつまる。","ひと","人"],["あの{q}の子はぼくのともだちだ。","おとこ","男"],["あの{q}の子とあそぶ。","おんな","女"],["小さな{q}がわらっている。","こ","子"],["大きな{q}でえを見る。","め","目"],["よく{q}をすませてきく。","みみ","耳"],["大きな{q}をあけてうたう。","くち","口"],["右の{q}でえんぴつをもつ。","て","手"],["たくさんあるいて{q}がつかれた。","あし","足"],["みんなで{q}をあわせる。","ちから","力"],["白い{q}がしっぽをふる。","いぬ","犬"],["小さな{q}をみつけた。","むし","虫"],["赤い{q}がさいている。","はな","花"],["にわの{q}をぬく。","くさ","草"],["ながい{q}がはえている。","たけ","竹"],["うみで{q}をひろった。","かい","貝"],["おとうさんの{q}にのる。","くるま","車"],["白い{q}をころがす。","たま","玉"]],"2":[["ひもをつよく{q}。","ひく","引く"],["とりの{q}が一まいおちていた。","はね","羽"],["空に白い{q}がうかぶ。","くも","雲"],["どうぶつ{q}へいく。","えん","園"],["ここから学校までは{q}。","とおい","遠い"],["これは{q}ですか。","なに","何"],["理{q}のじっけんをする。","か","科"],["あつい{q}がやってきた。","なつ","夏"],["学校から{q}にかえる。","いえ","家"],["みんなで{q}をうたう。","うた","歌"],["きれいな{q}をかく。","え","絵"],["ともだちと{q}って話す。","あ","会"],["青い{q}でおよぐ。","うみ","海"],["{q}で元気にあそぶ。","そと","外"],["三{q}形をかく。","かく","角"],["音{q}のじゅぎょうがすきだ。","がく","楽"],["元気に{q}どうする。","かつ","活"],["学校と家の{q}に公園がある。","あいだ","間"],["紙を{q}く切る。","まる","丸"],["大きな{q}山をみる。","いわ","岩"],["朝、{q}をあらう。","かお","顔"],["駅で{q}車を見る。","き","汽"],["日{q}に書く。","き","記"],["学校からまっすぐ{q}る。","かえ","帰"],["大きな{q}をひく。","ゆみ","弓"],["ぼく場に{q}がいる。","うし","牛"],["川で{q}をつる。","さかな","魚"],["東{q}へ行く。","きょう","京"],["もっと{q}くなる。","つよ","強"],["先生が算数を{q}える。","おし","教"]],"3":[["人のわる口を言うのは{q}い。","わる","悪"],["この店のパンは{q}い。","やす","安"],["夜の道は{q}い。","くら","暗"],["学級{q}員を決める。","い","委"],["言葉の{q}味を調べる。","い","意"],["病気なので{q}者へ行く。","い","医"],["花を大切に{q}てる。","そだ","育"],["水を{q}む。","の","飲"],["車を{q}転する。","うん","運"],["プールで{q}ぐ。","およ","泳"],["電車の{q}で待つ。","えき","駅"],["町の中{q}に公園がある。","おう","央"],["道を{q}にわたる。","よこ","横"],["今日の{q}度をはかる。","おん","温"],["荷{q}を運ぶ。","もの","物"],["世界の地図を見る。世{q}は広い。","かい","界"],["まどを{q}ける。","あ","開"],["二{q}へ上がる。","かい","階"],["冬の朝はとても{q}い。","さむ","寒"],["{q}字の練習をする。","かん","漢"],["図書{q}で本を読む。","かん","館"],["川の{q}を歩く。","きし","岸"],["朝早く{q}きる。","お","起"],["お{q}さんが家に来る。","きゃく","客"],["{q}いで学校へ行く。","いそ","急"],["三年一{q}の教室。","くみ","級"],["ボールを使う{q}技をする。","きゅう","球"],["大きな{q}をわたる。","はし","橋"],["{q}色のメダルをもらう。","ぎん","銀"],["この道は車が少なくて{q}い。","かる","軽"]],"4":[["家族を{q}する気持ち。","あい","愛"],["地図を見ながら道を{q}内する。","あん","案"],["百円{q}上のおかし。","い","以"],["一{q}にならぶ。","れつ","列"],["紙に文字を{q}刷する。","いん","印"],["{q}語の勉強をする。","えい","英"],["体に必要な{q}養をとる。","えい","栄"],["料理に{q}を少し入れる。","しお","塩"],["一{q}円という大きな数。","おく","億"],["二つの数を{q}える。","くわ","加"],["木に赤い{q}実がなる。","か","果"],["今日の宿題の{q}題をする。","か","課"],["木の{q}が出てきた。","め","芽"],["まちがいを{q}める。","あらた","改"],["大きな{q}械を動かす。","き","機"],["台風の{q}を受ける。","がい","害"],["駅前の{q}を歩く。","まち","街"],["{q}地から人が集まる。","かく","各"],["漢字を{q}える。","おぼ","覚"],["宿題を{q}全に終わらせる。","かん","完"],["水道{q}から水が出る。","かん","管"],["二つの出来事には{q}係がある。","かん","関"],["星を{q}察する。","かん","観"],["ねがいがかなうように{q}う。","ねが","願"],["春夏秋冬の{q}節。","き","季"],["試合に勝って{q}ぶ。","よろこ","喜"],["運動会で{q}をふる。","はた","旗"],["食事に使う{q}を洗う。","うつわ","器"],["答えを{q}める。","もと","求"],["悲しくて{q}く。","な","泣"]],"5":[["空気の{q}力を調べる。","あつ","圧"],["席を右へ{q}動する。","い","移"],["失敗した原{q}を考える。","いん","因"],["平和が{q}遠に続くことを願う。","えい","永"],["手洗いで{q}生を保つ。","えい","衛"],["水は{q}体の一つだ。","えき","液"],["発表会で劇を{q}じる。","えん","演"],["学校と家を{q}復する。","おう","往"],["春に{q}の花が咲く。","さくら","桜"],["先生の{q}を忘れない。","おん","恩"],["参加が{q}能か調べる。","か","可"],["実験の前に{q}説を立てる。","か","仮"],["商品の{q}格を比べる。","か","価"],["大きな{q}川が流れる。","か","河"],["問題を{q}決する方法を考える。","かい","解"],["答えが正しいか{q}かめる。","たし","確"],["木の太い{q}を観察する。","みき","幹"],["毎日の生活に{q}れる。","な","慣"],["生活の{q}本を守る。","き","基"],["友だちの家に{q}る。","よ","寄"],["学校の{q}則を守る。","き","規"],["職人の{q}を学ぶ。","わざ","技"],["社会の一員として{q}務を果たす。","ぎ","義"],["駅とは{q}の方向へ進む。","ぎゃく","逆"],["深く息をして{q}吸を整える。","こ","呼"],["入場の{q}可をもらう。","きょ","許"],["県と県の{q}界を越える。","きょう","境"],["立ち入りを{q}止する。","きん","禁"],["会社を{q}営する。","けい","経"],["一人一人の{q}人情報を守る。","こ","個"]],"6":[["昔の文化{q}産を守る。","い","遺"],["この地{q}には多くの人が住む。","いき","域"],["{q}宙について学ぶ。","う","宇"],["テレビの{q}像を見る。","えい","映"],["川に{q}って道が続く。","そ","沿"],["工事の期間を{q}長する。","えん","延"],["{q}が家の歴史を調べる。","わ","我"],["火山から出た{q}を調べる。","はい","灰"],["写真を{q}大して見る。","かく","拡"],["生活を大きく変えた産業{q}命。","かく","革"],["雨が降る{q}率を調べる。","かく","確"],["内{q}が会議を開く。","かく","閣"],["全体に対する{q}合を求める。","わり","割"],["会社の{q}を買う。","かぶ","株"],["洗った服を{q}す。","ほ","干"],["包帯をうでに{q}く。","ま","巻"],["病人を{q}護する。","かん","看"],["説明を{q}単にまとめる。","かん","簡"],["{q}険な場所に近づかない。","き","危"],["勉強{q}の上を片づける。","づくえ","机"],["とても{q}重な資料を見る。","き","貴"],["本当に正しいか{q}問に思う。","ぎ","疑"],["ストローで水を{q}う。","す","吸"],["神社に米を{q}える。","そな","供"],["運動すると{q}がどきどきする。","むね","胸"],["ふるさとの{q}土料理を食べる。","きょう","郷"],["会社に{q}める。","つと","勤"],["腕の{q}肉をきたえる。","きん","筋"],["太陽{q}の星について学ぶ。","けい","系"],["目上の人を{q}う。","うやま","敬"]]};
+
+const katakanaBank = [["あいすくりーむ","アイスクリーム"],["あにめ","アニメ"],["あるばむ","アルバム"],["いんたーねっと","インターネット"],["えあこん","エアコン"],["えすかれーたー","エスカレーター"],["えぷろん","エプロン"],["えれべーたー","エレベーター"],["おむれつ","オムレツ"],["おれんじ","オレンジ"],["かーど","カード"],["かめら","カメラ"],["がらす","ガラス"],["きゃべつ","キャベツ"],["きゃんぷ","キャンプ"],["くっきー","クッキー"],["くらす","クラス"],["くりーむ","クリーム"],["けーき","ケーキ"],["げーむ","ゲーム"],["こっぷ","コップ"],["こんぴゅーたー","コンピューター"],["さいん","サイン"],["さっかー","サッカー"],["さらだ","サラダ"],["さんどいっち","サンドイッチ"],["しゃつ","シャツ"],["じゃむ","ジャム"],["じゅーす","ジュース"],["すーぷ","スープ"],["すかーと","スカート"],["すけーと","スケート"],["すぷーん","スプーン"],["すぽーつ","スポーツ"],["ずぼん","ズボン"],["せーたー","セーター"],["ぜりー","ゼリー"],["そふぁー","ソファー"],["たおる","タオル"],["たくしー","タクシー"],["ちーず","チーズ"],["ちーむ","チーム"],["ちょこれーと","チョコレート"],["てーぶる","テーブル"],["てれび","テレビ"],["てにす","テニス"],["といれ","トイレ"],["とまと","トマト"],["どあ","ドア"],["どーなつ","ドーナツ"],["どらいぶ","ドライブ"],["にゅーす","ニュース"],["ねくたい","ネクタイ"],["のーと","ノート"],["ばいく","バイク"],["ばす","バス"],["ばたー","バター"],["ばなな","バナナ"],["ぱそこん","パソコン"],["ぱん","パン"],["ぱんだ","パンダ"],["ぴあの","ピアノ"],["ぴざ","ピザ"],["ぷーる","プール"],["ぷりん","プリン"],["べっど","ベッド"],["ぺん","ペン"],["ほてる","ホテル"],["ぼーる","ボール"],["ぽけっと","ポケット"],["ぽすと","ポスト"],["まよねーず","マヨネーズ"],["まふらー","マフラー"],["みるく","ミルク"],["めーる","メール"],["めろん","メロン"],["らいおん","ライオン"],["らじお","ラジオ"],["らんどせる","ランドセル"],["れすとらん","レストラン"],["れもん","レモン"],["ろぼっと","ロボット"],["わいしゃつ","ワイシャツ"]];
+
+function switchTab(tab){
+  currentTab = tab;
+  document.getElementById('mathSection').classList.toggle('hidden',tab!=='math');
+  document.getElementById('kanjiSection').classList.toggle('hidden',tab!=='kanji');
+  document.getElementById('katakanaSection').classList.toggle('hidden',tab!=='katakana');
+  document.getElementById('mathTab').classList.toggle('active',tab==='math');
+  document.getElementById('kanjiTab').classList.toggle('active',tab==='kanji');
+  document.getElementById('katakanaTab').classList.toggle('active',tab==='katakana');
+}
+
+function refreshMathControls(){
+  const op = document.getElementById('operation').value;
+  const div = op === 'div';
+  document.getElementById('remainderBox').classList.toggle('hidden',!div);
+  document.getElementById('leftLabel').textContent = div ? 'わられる数' : '左の数';
+  document.getElementById('rightLabel').textContent = div ? 'わる数' : '右の数';
+}
+
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function minForDigits(d){ return d===1 ? 1 : 10**(d-1); }
+function maxForDigits(d){ return 10**d-1; }
+function randomNDigit(d){ return randInt(minForDigits(d),maxForDigits(d)); }
+
+function generateMath(){
+  const op = document.getElementById('operation').value;
+  const ld = Number(document.getElementById('leftDigits').value);
+  const rd = Number(document.getElementById('rightDigits').value);
+  const count = Number(document.getElementById('mathCount').value);
+  const allowRemainder = document.getElementById('allowRemainder').checked;
+  const box = document.getElementById('mathProblems');
+  const err = document.getElementById('mathError');
+  err.textContent = '';
+  box.innerHTML = '';
+  const seen = new Set();
+  const questions = [];
+  let guard = 0;
+
+  while(questions.length < count && guard < 20000){
+    guard++;
+    let a,b,answer,key;
+
+    if(op==='add'){
+      a=randomNDigit(ld); b=randomNDigit(rd);
+      key=`${a}+${b}`; if(seen.has(key)) continue;
+      answer=String(a+b);
+    }else if(op==='sub'){
+      a=randomNDigit(ld); b=randomNDigit(rd);
+      if(a < b) continue; // 答えがマイナスにならない
+      key=`${a}-${b}`; if(seen.has(key)) continue;
+      answer=String(a-b);
+    }else if(op==='mul'){
+      a=randomNDigit(ld); b=randomNDigit(rd);
+      key=`${a}x${b}`; if(seen.has(key)) continue;
+      answer=String(a*b);
+    }else{
+      b=randomNDigit(rd);
+      if(allowRemainder && Math.random()<0.5){
+        a=randomNDigit(ld);
+        if(a < b) continue;
+        const q=Math.floor(a/b), r=a%b;
+        if(r===0) continue;
+        answer=`${q} あまり ${r}`;
+      }else{
+        const amin=minForDigits(ld), amax=maxForDigits(ld);
+        const qmin=Math.max(1,Math.ceil(amin/b));
+        const qmax=Math.floor(amax/b);
+        if(qmin>qmax) continue;
+        const q=randInt(qmin,qmax);
+        a=b*q; answer=String(q);
+      }
+      key=`${a}/${b}`; if(seen.has(key)) continue;
+    }
+    seen.add(key);
+    questions.push({a,b,answer});
+  }
+
+  if(questions.length<count)
+    err.textContent='この桁数の組み合わせでは問題を十分に作れません。桁数を変えてください。';
+
+  const symbols={add:'＋',sub:'－',mul:'×',div:'÷'};
+  questions.forEach((q,i)=>{
+    const row=document.createElement('div');
+    row.className='problem';
+    row.innerHTML=`<span class="num">${i+1}.</span> ${q.a} ${symbols[op]} ${q.b} ＝ <span class="answer ${mathAnswersVisible?'':'hidden'}">${q.answer}</span>`;
+    box.appendChild(row);
+  });
+  document.getElementById('mathBadge').textContent =
+    `${ld}桁 ${symbols[op]} ${rd}桁 / ${questions.length}問`;
+}
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function generateKanji(){
+  const grade=Number(document.getElementById('grade').value);
+  const count=Number(document.getElementById('kanjiCount').value);
+  const list=shuffle(kanjiBank[grade]).slice(0,count);
+  const box=document.getElementById('kanjiProblems');
+  box.innerHTML='';
+  list.forEach((item,i)=>{
+    const [template,reading,answer]=item;
+    const questionSentence=template.replace('{q}', `<strong>（${reading}）</strong>`);
+    const row=document.createElement('div');
+    row.className='problem kanji-problem';
+    row.innerHTML=`<span class="num">${i+1}.</span><span>${questionSentence}</span><span class="writebox"></span><span class="answer ${kanjiAnswersVisible?'':'hidden'}">${answer}</span>`;
+    box.appendChild(row);
+  });
+  document.getElementById('kanjiBadge').textContent=`小学${grade}年生 / ${list.length}問`;
+}
+
+function generateKatakana(){
+  const count=Number(document.getElementById('katakanaCount').value);
+  const list=shuffle(katakanaBank).slice(0,count);
+  const box=document.getElementById('katakanaProblems');
+  box.innerHTML='';
+  list.forEach((item,i)=>{
+    const [hiragana,katakana]=item;
+    const row=document.createElement('div');
+    row.className='problem kanji-problem';
+    row.innerHTML=`<span class="num">${i+1}.</span>「${hiragana}」をカタカナで書きましょう。<span class="writebox"></span><span class="answer ${katakanaAnswersVisible?'':'hidden'}">${katakana}</span>`;
+    box.appendChild(row);
+  });
+  document.getElementById('katakanaBadge').textContent=`${list.length}問`;
+}
+
+function openPasswordModal(action){
+  pendingProtectedAction = action;
+  document.getElementById('answerPassword').value = '';
+  document.getElementById('passwordError').textContent = '';
+  document.getElementById('passwordModal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('answerPassword').focus(),50);
+}
+
+function closePasswordModal(){
+  document.getElementById('passwordModal').classList.add('hidden');
+  pendingProtectedAction = null;
+}
+
+function submitPassword(){
+  const value=document.getElementById('answerPassword').value;
+  if(value !== 'benkyosinasai'){
+    document.getElementById('passwordError').textContent='パスワードが違います。';
+    document.getElementById('answerPassword').select();
+    return;
+  }
+  const action=pendingProtectedAction;
+  document.getElementById('passwordModal').classList.add('hidden');
+  pendingProtectedAction=null;
+  if(action) action();
+}
+
+function toggleAnswers(kind){
+  const visible = kind==='math' ? mathAnswersVisible : kind==='kanji' ? kanjiAnswersVisible : katakanaAnswersVisible;
+  if(visible){ setAnswerVisibility(kind,false); } else { openPasswordModal(()=>setAnswerVisibility(kind,true)); }
+}
+
+function setAnswerVisibility(kind,show){
+  if(kind==='math') mathAnswersVisible=show;
+  else if(kind==='kanji') kanjiAnswersVisible=show;
+  else katakanaAnswersVisible=show;
+  const root=document.getElementById(kind==='math'?'mathProblems':kind==='kanji'?'kanjiProblems':'katakanaProblems');
+  root.querySelectorAll('.answer').forEach(el=>el.classList.toggle('hidden',!show));
+}
+
+function printProblems(withAnswers){
+  if(withAnswers){
+    openPasswordModal(()=>doPrintProblems(true));
+  }else{
+    doPrintProblems(false);
+  }
+}
+
+function doPrintProblems(withAnswers){
+  const root=document.getElementById(currentTab==='math'?'mathProblems':currentTab==='kanji'?'kanjiProblems':'katakanaProblems');
+  root.querySelectorAll('.answer').forEach(el=>{
+    el.classList.remove('print-hide');
+    if(withAnswers){
+      el.classList.remove('hidden');
+    }else{
+      el.classList.add('print-hide');
+    }
+  });
+  window.print();
+  root.querySelectorAll('.answer').forEach(el=>el.classList.remove('print-hide'));
+  if(currentTab==='math' && !mathAnswersVisible) root.querySelectorAll('.answer').forEach(el=>el.classList.add('hidden'));
+  if(currentTab==='kanji' && !kanjiAnswersVisible) root.querySelectorAll('.answer').forEach(el=>el.classList.add('hidden'));
+  if(currentTab==='katakana' && !katakanaAnswersVisible) root.querySelectorAll('.answer').forEach(el=>el.classList.add('hidden'));
+}
+
+refreshMathControls();
+generateMath();
+generateKanji();
+generateKatakana();
+</script>
+</body>
+</html>
