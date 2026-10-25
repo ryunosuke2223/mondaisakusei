@@ -69,6 +69,7 @@
     min-height:50px;padding:8px 4px;border-bottom:1px dashed #cbd5e1;
     display:flex;align-items:center;font-size:22px
   }
+  .math-expression{white-space:nowrap;font-size:clamp(15px,2vw,22px)}
   .num{display:inline-block;min-width:35px;color:#64748b;font-weight:700}
   .answer{margin-left:10px;color:var(--success);font-weight:900}
   .hidden{display:none!important}
@@ -108,6 +109,7 @@
     .card{box-shadow:none;padding:0;margin:0}
     .problem-grid{grid-template-columns:repeat(2,1fr);column-gap:28px}
     .problem{font-size:18px;min-height:42px}
+    .math-expression{font-size:16px}
     .problem-header{margin-bottom:10px}
     .answer.print-hide{display:none!important}
   }
@@ -136,6 +138,7 @@
           <select id="operation" onchange="refreshMathControls()">
             <option value="add">足し算（＋）</option>
             <option value="sub">引き算（－）</option>
+            <option value="mixed">足し算・引き算ミックス（＋－）</option>
             <option value="mul" selected>かけ算（×）</option>
             <option value="div">わり算（÷）</option>
           </select>
@@ -175,7 +178,7 @@
         <button class="action ghost" onclick="printProblems(false)">🖨️ 問題だけ印刷</button>
         <button class="action ghost" onclick="printProblems(true)">🖨️ 答えつき印刷</button>
       </div>
-      <div class="small">わり算は「あまりなし」を基本にしています。「あまりありも出す」にチェックすると混在します。</div>
+      <div class="small">足し算・引き算は3項式です。ミックスでは1問の中に＋と－が両方入り、途中の答えもマイナスになりません。かけ算は1の段を除外します。わり算は「あまりなし」を基本にしています。「あまりありも出す」にチェックすると混在します。</div>
       <div id="mathError" class="error"></div>
     </div>
 
@@ -288,8 +291,8 @@ function refreshMathControls(){
   const op = document.getElementById('operation').value;
   const div = op === 'div';
   document.getElementById('remainderBox').classList.toggle('hidden',!div);
-  document.getElementById('leftLabel').textContent = div ? 'わられる数' : '左の数';
-  document.getElementById('rightLabel').textContent = div ? 'わる数' : '右の数';
+  document.getElementById('leftLabel').textContent = div ? 'わられる数' : '最初の数';
+  document.getElementById('rightLabel').textContent = div ? 'わる数' : ['add','sub','mixed'].includes(op) ? '2番目・3番目の数' : '右の数';
 }
 
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
@@ -311,22 +314,29 @@ function generateMath(){
   const questions = [];
   let guard = 0;
 
-  while(questions.length < count && guard < 20000){
+  while(questions.length < count && guard < 30000){
     guard++;
-    let a,b,answer,key;
+    let a, b, c, answer, key, expression;
 
-    if(op==='add'){
-      a=randomNDigit(ld); b=randomNDigit(rd);
-      key=`${a}+${b}`; if(seen.has(key)) continue;
-      answer=String(a+b);
-    }else if(op==='sub'){
-      a=randomNDigit(ld); b=randomNDigit(rd);
-      if(a < b) continue; // 答えがマイナスにならない
-      key=`${a}-${b}`; if(seen.has(key)) continue;
-      answer=String(a-b);
+    if(['add','sub','mixed'].includes(op)){
+      a = randomNDigit(ld);
+      b = randomNDigit(rd);
+      c = randomNDigit(rd);
+      // ミックスは各問題の中に「＋」「－」を必ず1つずつ含める。
+      const ops = op==='add' ? ['＋','＋'] : op==='sub' ? ['－','－']
+        : Math.random()<0.5 ? ['＋','－'] : ['－','＋'];
+      const intermediate = ops[0]==='＋' ? a+b : a-b;
+      const result = ops[1]==='＋' ? intermediate+c : intermediate-c;
+      // 引き算の途中経過も答えも、負の数にならないようにする。
+      if(intermediate < 0 || result < 0) continue;
+      expression = `${a} ${ops[0]} ${b} ${ops[1]} ${c}`;
+      key = expression;
+      answer = String(result);
     }else if(op==='mul'){
       a=randomNDigit(ld); b=randomNDigit(rd);
-      key=`${a}x${b}`; if(seen.has(key)) continue;
+      if(a===1 || b===1) continue; // 1×n / n×1 は出題しない
+      expression=`${a} × ${b}`;
+      key=expression;
       answer=String(a*b);
     }else{
       b=randomNDigit(rd);
@@ -344,24 +354,28 @@ function generateMath(){
         const q=randInt(qmin,qmax);
         a=b*q; answer=String(q);
       }
-      key=`${a}/${b}`; if(seen.has(key)) continue;
+      expression=`${a} ÷ ${b}`;
+      key=expression;
     }
+    if(seen.has(key)) continue;
     seen.add(key);
-    questions.push({a,b,answer});
+    questions.push({expression,answer});
   }
 
   if(questions.length<count)
     err.textContent='この桁数の組み合わせでは問題を十分に作れません。桁数を変えてください。';
 
-  const symbols={add:'＋',sub:'－',mul:'×',div:'÷'};
   questions.forEach((q,i)=>{
     const row=document.createElement('div');
     row.className='problem';
-    row.innerHTML=`<span class="num">${i+1}.</span> ${q.a} ${symbols[op]} ${q.b} ＝ <span class="answer ${mathAnswersVisible?'':'hidden'}">${q.answer}</span>`;
+    row.innerHTML=`<span class="num">${i+1}.</span><span class="math-expression">${q.expression} ＝</span> <span class="answer ${mathAnswersVisible?'':'hidden'}">${q.answer}</span>`;
     box.appendChild(row);
   });
+  const labels={add:'＋ ＋',sub:'－ －',mixed:'＋・－ ミックス',mul:'×',div:'÷'};
   document.getElementById('mathBadge').textContent =
-    `${ld}桁 ${symbols[op]} ${rd}桁 / ${questions.length}問`;
+    ['add','sub','mixed'].includes(op)
+      ? `${ld}桁 ${labels[op]} ${rd}桁・${rd}桁 / ${questions.length}問`
+      : `${ld}桁 ${labels[op]} ${rd}桁 / ${questions.length}問`;
 }
 
 function shuffle(arr){
